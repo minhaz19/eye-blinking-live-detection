@@ -132,8 +132,10 @@ const detectionReducer = (
 export default function Liveness() {
   const navigation = useNavigation()
   const [hasPermission, setHasPermission] = React.useState(false)
+  const [image, setImage] = React.useState(null)
   const [state, dispatch] = React.useReducer(detectionReducer, initialState)
   const rollAngles = React.useRef<number[]>([])
+  const cameraRef = React.useRef(null)
 
   React.useEffect(() => {
     const requestPermissions = async () => {
@@ -263,12 +265,24 @@ export default function Liveness() {
   React.useEffect(() => {
     if (state.processComplete) {
       Alert.alert('Liveness', 'Liveness check passed')
-      setTimeout(() => {
-        navigation.goBack()
-        // enough delay for the final progress fill animation.
-      }, 500)
+      captureImage();
+      // setTimeout(() => {
+      //   navigation.goBack()
+      //   // enough delay for the final progress fill animation.
+      // }, 500)
     }
   }, [state.processComplete])
+
+
+  const captureImage = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync();
+      setImage(photo.uri);
+    }
+  };
+
+
+  console.log({ image }, 'image capture')
 
   if (hasPermission === false) {
     return <Text>No access to camera</Text>
@@ -281,6 +295,7 @@ export default function Liveness() {
         maskElement={<View style={styles.mask} />}
       >
         <Camera
+          ref={cameraRef}
           style={StyleSheet.absoluteFill}
           type={Camera.Constants.Type.front}
           onFacesDetected={onFacesDetected}

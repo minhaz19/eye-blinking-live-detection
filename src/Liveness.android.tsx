@@ -1,6 +1,6 @@
 import * as FaceDetector from "expo-face-detector"
 import React, { useEffect, useReducer, useRef, useState } from "react"
-import { StyleSheet, Text, View, Dimensions, PixelRatio, Alert } from "react-native"
+import { StyleSheet, Text, View, Dimensions, PixelRatio, Alert, Image } from "react-native"
 import { Camera, FaceDetectionResult } from "expo-camera"
 import { AnimatedCircularProgress } from "react-native-circular-progress"
 import { useNavigation } from "@react-navigation/native"
@@ -64,9 +64,11 @@ const initialState = {
 export default function Liveness() {
   const navigation = useNavigation()
   const [hasPermission, setHasPermission] = useState(false)
+  const [image, setImage] = React.useState(null)
   const [state, dispatch] = useReducer(detectionReducer, initialState)
   const rollAngles = useRef<number[]>([])
   const rect = useRef<View>(null)
+  const cameraRef = useRef(null)
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -202,15 +204,26 @@ export default function Liveness() {
     }
   }
 
+
   useEffect(() => {
     if (state.processComplete) {
       Alert.alert('Liveness', 'Liveness check passed')
-      setTimeout(() => {
-        // delay so we can see progress fill aniamtion (500ms)
-        navigation.goBack()
-      }, 750)
+      captureImage();
+      // setTimeout(() => {
+      //   // delay so we can see progress fill aniamtion (500ms)
+      //   navigation.goBack()
+      // }, 750)
     }
   }, [state.processComplete])
+
+  const captureImage = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync();
+      setImage(photo.uri);
+    }
+  };
+
+  console.log(image, 'image');
 
   if (hasPermission === false) {
     return <Text>No access to camera</Text>
@@ -218,84 +231,91 @@ export default function Liveness() {
 
   return (
     <View style={styles.container}>
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          width: "100%",
-          height: PREVIEW_MARGIN_TOP,
-          backgroundColor: "white",
-          zIndex: 10
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          top: PREVIEW_MARGIN_TOP,
-          left: 0,
-          width: (windowWidth - PREVIEW_SIZE) / 2,
-          height: PREVIEW_SIZE,
-          backgroundColor: "white",
-          zIndex: 10
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          top: PREVIEW_MARGIN_TOP,
-          right: 0,
-          width: (windowWidth - PREVIEW_SIZE) / 2 + 1,
-          height: PREVIEW_SIZE,
-          backgroundColor: "white",
-          zIndex: 10
-        }}
-      />
-
-      <Camera
-        style={styles.cameraPreview}
-        type={Camera.Constants.Type.front}
-        onFacesDetected={onFacesDetected}
-        faceDetectorSettings={{
-          mode: FaceDetector.FaceDetectorMode.fast,
-          detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-          runClassifications: FaceDetector.FaceDetectorClassifications.all,
-          minDetectionInterval: 0,
-          tracking: false
-        }}
-      >
-        <CameraPreviewMask width={"100%"} style={styles.circularProgress} />
-        <AnimatedCircularProgress
-          style={styles.circularProgress}
-          size={PREVIEW_SIZE}
-          width={5}
-          backgroundWidth={7}
-          fill={state.progressFill}
-          tintColor="#3485FF"
-          backgroundColor="#e8e8e8"
+      {image ? <>
+        <Text>Image Captured</Text>
+        <View style={{ width: 200, height: 200, justifyContent: 'center', alignContent: 'center' }}>
+          <Image source={{ uri: image }} style={{ width: 200, height: 200 }} />
+        </View>
+      </> : <>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            width: "100%",
+            height: PREVIEW_MARGIN_TOP,
+            backgroundColor: "white",
+            zIndex: 10
+          }}
         />
-      </Camera>
-      <View
-        ref={rect}
-        style={{
-          position: "absolute",
-          borderWidth: 2,
-          borderColor: "pink",
-          zIndex: 10
-        }}
-      />
-      <View style={styles.promptContainer}>
-        <Text style={styles.faceStatus}>
-          {!state.faceDetected && promptsText.noFaceDetected}
-        </Text>
-        <Text style={styles.actionPrompt}>
-          {state.faceDetected && promptsText.performActions}
-        </Text>
-        <Text style={styles.action}>
-          {state.faceDetected &&
-            detections[state.detectionsList[state.currentDetectionIndex]]
-              .promptText}
-        </Text>
-      </View>
+        <View
+          style={{
+            position: "absolute",
+            top: PREVIEW_MARGIN_TOP,
+            left: 0,
+            width: (windowWidth - PREVIEW_SIZE) / 2,
+            height: PREVIEW_SIZE,
+            backgroundColor: "white",
+            zIndex: 10
+          }}
+        />
+        <View
+          style={{
+            position: "absolute",
+            top: PREVIEW_MARGIN_TOP,
+            right: 0,
+            width: (windowWidth - PREVIEW_SIZE) / 2 + 1,
+            height: PREVIEW_SIZE,
+            backgroundColor: "white",
+            zIndex: 10
+          }}
+        />
+
+        <Camera
+          ref={cameraRef}
+          style={styles.cameraPreview}
+          type={Camera.Constants.Type.front}
+          onFacesDetected={onFacesDetected}
+          faceDetectorSettings={{
+            mode: FaceDetector.FaceDetectorMode.fast,
+            detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+            runClassifications: FaceDetector.FaceDetectorClassifications.all,
+            minDetectionInterval: 0,
+            tracking: false
+          }}
+        >
+          <CameraPreviewMask width={"100%"} style={styles.circularProgress} />
+          <AnimatedCircularProgress
+            style={styles.circularProgress}
+            size={PREVIEW_SIZE}
+            width={5}
+            backgroundWidth={7}
+            fill={state.progressFill}
+            tintColor="#3485FF"
+            backgroundColor="#e8e8e8"
+          />
+        </Camera>
+        <View
+          ref={rect}
+          style={{
+            position: "absolute",
+            borderWidth: 2,
+            borderColor: "pink",
+            zIndex: 10
+          }}
+        />
+        <View style={styles.promptContainer}>
+          <Text style={styles.faceStatus}>
+            {!state.faceDetected && promptsText.noFaceDetected}
+          </Text>
+          <Text style={styles.actionPrompt}>
+            {state.faceDetected && promptsText.performActions}
+          </Text>
+          <Text style={styles.action}>
+            {state.faceDetected &&
+              detections[state.detectionsList[state.currentDetectionIndex]]
+                .promptText}
+          </Text>
+        </View></>}
     </View>
   )
 }
